@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 import numpy as np
+import os
 import torchvision
 from torchvision import datasets, models, transforms
 import torch.nn.functional as F
@@ -71,7 +72,9 @@ def createImageNetmodel(model_name, torchhub=None):
         #     print(param_tensor, "\t", currentmodel.state_dict()[param_tensor].size())
 
 def createTorchCNNmodel(name, numclasses, img_shape, pretrained=True):
-    if name=='cnnmodel1':
+    if name=='ModifiableResNet':
+        return create_modifiableResNet()
+    elif name=='cnnmodel1':
         return create_cnnmodel1(numclasses, img_shape)
     elif name=='mlpmodel1':
         return create_mlpmodel1(numclasses, img_shape)
@@ -91,6 +94,46 @@ def createTorchCNNmodel(name, numclasses, img_shape, pretrained=True):
         #return models.__dict__[name](pretrained=pretrained)
         #return create_torchvisionmodel(name, numclasses, pretrained)
         return create_torchvisionmodel(name, numclasses, freezeparameters=True, pretrained=pretrained)
+
+class ModifiableResNet(nn.Module):
+    def __init__(self, num_classes=1000, block_sizes=[3, 4, 6, 3], learning_rate=0.001):
+        super(ConfigurableResNet, self).__init__()
+        # Load a pre-trained ResNet
+        original_model = models.resnet50(pretrained=True)
+        
+        # Modify block sizes if necessary
+        layers = list(original_model.children())[:-2]  # all layers except the last linear and pool layers
+        if block_sizes != [3, 4, 6, 3]:  # default block sizes for ResNet50
+            layers[4] = self._modify_layer(layers[4], block_sizes[0])  # layer1
+            layers[5] = self._modify_layer(layers[5], block_sizes[1])  # layer2
+            layers[6] = self._modify_layer(layers[6], block_sizes[2])  # layer3
+            layers[7] = self._modify_layer(layers[7], block_sizes[3])  # layer4
+
+        self.features = nn.Sequential(*layers)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(original_model.fc.in_features, num_classes)
+        self.learning_rate = learning_rate
+
+    def _modify_layer(self, layer, num_blocks):
+        # Assumes the input layer is a Sequential container from a ResNet model.
+        new_layer = nn.Sequential(*list(layer.children())[:num_blocks])
+        return new_layer
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
+    
+
+os.environ['TORCH_HOME'] = '/Users/AdityaP/Github/HW2-MultiModalClassifier/TorchClassifier'
+    
+def create_modifiableResNet():
+
+    # Load a pre-trained ResNet50 model from PyTorch Hub
+    resnet50 = torch.hub.load('pytorch/vision:v0.10.0', 'resnet50', pretrained=True)
+    return resnet50
 
 def create_vggmodel1(numclasses, img_shape):
     # Load the pretrained model from pytorch

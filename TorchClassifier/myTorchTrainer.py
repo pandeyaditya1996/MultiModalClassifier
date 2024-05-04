@@ -6,10 +6,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
+
+import matplotlib
+import os
 import numpy as np
 import torchvision
 from torchvision import datasets, models, transforms
-import matplotlib
 # matplotlib.use('TkAgg',force=True)
 # from matplotlib import pyplot as plt
 # print("Switched to:",matplotlib.get_backend())
@@ -115,6 +117,9 @@ parser.add_argument('--classmap', default='TorchClassifier/Datasetutil/imagenet1
                     help='path to class to idx mapping file (default: "")')
 parser.add_argument('--GPU', type=bool, default=True,
                     help='use GPU')
+# Playing around with config
+# parser.add_argument('--GPU', type=bool, default=False,
+#                help='use GPU')
 parser.add_argument('--gpuid', default=0, type=int,
                     help='GPU id to use.')
 parser.add_argument('--ddp', default=False, type=bool,
@@ -212,6 +217,7 @@ def train_model(model, dataloaders, dataset_sizes, criterion, optimizer, schedul
                 running_corrects += torch.sum(preds == labels.data)
                 # measure accuracy and record loss
                 acc1, acc5 = accuracy(outputs, labels, topk=(1, 5))
+                #acc1 = accuracy(outputs, labels, topk=(2,))
                 losses.update(loss.item(), inputs.size(0))
                 top1.update(acc1[0], inputs.size(0))
                 top5.update(acc5[0], inputs.size(0))
